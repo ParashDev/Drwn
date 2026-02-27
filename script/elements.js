@@ -223,12 +223,7 @@ function render() {
       const handleAngles = { tm: 0, tr: 45, mr: 90, br: 135, bm: 180, bl: 225, ml: 270, tl: 315 };
       const cursorNames = ['n-resize','ne-resize','e-resize','se-resize','s-resize','sw-resize','w-resize','nw-resize'];
       const rot = el.rotation || 0;
-      // On mobile, skip middle handles for small elements (they overlap and are ungrabable)
-      const mob = isMobile();
-      const renderedW = el.w * zoom, renderedH = el.h * zoom;
-      const smallOnMobile = mob && (renderedW < 100 || renderedH < 100);
-      const handleList = smallOnMobile ? ['tl','tr','bl','br'] : ['tl','tr','bl','br','tm','bm','ml','mr'];
-      handleList.forEach(pos => {
+      ['tl','tr','bl','br','tm','bm','ml','mr'].forEach(pos => {
         const h = document.createElement('div'); h.className = 'resize-handle '+pos; h.dataset.handle = pos;
         // Pick cursor based on handle angle + element rotation
         const angle = ((handleAngles[pos] + rot) % 360 + 360) % 360;
