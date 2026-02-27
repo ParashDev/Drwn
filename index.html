@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111118">
+<title>drwn — Design Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&family=Raleway:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600;700&family=Quicksand:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Merriweather:wght@300;400;700&family=Lora:wght@400;500;600;700&family=Crimson+Text:wght@400;600;700&family=EB+Garamond:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Dancing+Script:wght@400;500;600;700&family=Pacifico&family=Great+Vibes&family=Satisfy&family=Sacramento&family=Cookie&family=Lobster&family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&family=Bebas+Neue&family=Righteous&family=Fredoka+One&family=Permanent+Marker&family=Bangers&family=Bungee&family=Rubik+Bubbles&family=JetBrains+Mono:wght@400;500;600;700&family=Fira+Code:wght@300;400;500;600;700&family=Source+Code+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style/main.css" />
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['DM Sans', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        fg: {
+          900: '#0a0a0f',
+          800: '#111118',
+          750: '#161620',
+          700: '#1c1c28',
+          600: '#252535',
+          500: '#2e2e44',
+          400: '#4a4a6a',
+          300: '#7a7a9a',
+          200: '#b0b0cc',
+          100: '#e0e0f0',
+          accent: '#6c5ce7',
+          accentHover: '#7c6ff0',
+          accentLight: '#a29bfe',
+          hot: '#fd79a8',
+          success: '#00b894',
+          warn: '#fdcb6e',
+          danger: '#e17055',
+        }
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="bg-fg-900 text-fg-100 h-screen flex flex-col">
+
+<!-- ═══════════ PRESET MODAL ═══════════ -->
+<div id="presetModal" class="modal-overlay hidden">
+  <div class="bg-fg-800 border border-fg-600 rounded-2xl shadow-2xl w-[720px] max-h-[85vh] overflow-hidden flex flex-col">
+    <div class="p-5 border-b border-fg-700 flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-semibold text-fg-100">Create New Design</h2>
+        <p class="text-xs text-fg-300 mt-0.5">Choose a template or canvas size</p>
+      </div>
+      <button onclick="closePresetModal()" class="text-fg-400 hover:text-fg-200 p-1 rounded-lg hover:bg-fg-700">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <!-- Tab bar -->
+    <div class="flex border-b border-fg-700 px-5">
+      <button onclick="switchPresetTab('templates')" id="presetTabTemplates" class="preset-tab active">Templates</button>
+      <button onclick="switchPresetTab('sizes')" id="presetTabSizes" class="preset-tab">Canvas Sizes</button>
+    </div>
+    <div class="p-5 overflow-y-auto flex-1">
+      <!-- Templates view (shown by default) -->
+      <div id="presetViewTemplates">
+        <div id="templateCategories"></div>
+      </div>
+      <!-- Sizes view (hidden by default) -->
+      <div id="presetViewSizes" class="hidden">
+        <!-- Custom size row -->
+        <div class="flex gap-3 items-end mb-5 p-3 bg-fg-750 rounded-xl border border-fg-600">
+          <div class="flex-1">
+            <label class="text-[10px] text-fg-300 uppercase tracking-widest block mb-1">Width</label>
+            <input type="number" id="customW" value="800" class="w-full bg-fg-700 border border-fg-600 rounded-lg px-3 py-2 text-sm text-fg-100 outline-none focus:border-fg-accent" />
+          </div>
+          <div class="text-fg-400 pb-2">&times;</div>
+          <div class="flex-1">
+            <label class="text-[10px] text-fg-300 uppercase tracking-widest block mb-1">Height</label>
+            <input type="number" id="customH" value="600" class="w-full bg-fg-700 border border-fg-600 rounded-lg px-3 py-2 text-sm text-fg-100 outline-none focus:border-fg-accent" />
+          </div>
+          <button onclick="applyCustomSize()" class="bg-fg-accent hover:bg-fg-accentHover text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors whitespace-nowrap">
+            Create
+          </button>
+        </div>
+        <!-- Preset categories -->
+        <div id="presetCategories"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SAVE MODAL ═══════════ -->
+<div id="saveModal" class="modal-overlay hidden" onclick="if(event.target===this)closeSaveModal()">
+  <div class="bg-fg-800 border border-fg-600 rounded-2xl shadow-2xl w-[400px] max-h-[70vh] overflow-hidden flex flex-col">
+    <div class="p-5 border-b border-fg-700 flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-semibold text-fg-100">Save Design</h2>
+        <p class="text-xs text-fg-300 mt-0.5">Save to browser storage</p>
+      </div>
+      <button onclick="closeSaveModal()" class="text-fg-400 hover:text-fg-200 p-1 rounded-lg hover:bg-fg-700">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-5 flex flex-col gap-4">
+      <div>
+        <label class="text-[10px] text-fg-300 uppercase tracking-widest block mb-1.5">Design Name</label>
+        <div class="flex gap-2">
+          <input type="text" id="saveDesignName" placeholder="My Design" class="flex-1 bg-fg-700 border border-fg-600 rounded-lg px-3 py-2 text-sm text-fg-100 outline-none focus:border-fg-accent" onkeydown="if(event.key==='Enter')handleSaveSubmit()" />
+          <button onclick="handleSaveSubmit()" class="bg-fg-accent hover:bg-fg-accentHover text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">Save</button>
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] text-fg-300 uppercase tracking-widest block mb-1.5">Existing Saves</label>
+        <div id="saveExistingList" class="flex flex-col gap-1.5 max-h-48 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ LOAD MODAL ═══════════ -->
+<div id="loadModal" class="modal-overlay hidden" onclick="if(event.target===this)closeLoadModal()">
+  <div class="bg-fg-800 border border-fg-600 rounded-2xl shadow-2xl w-[520px] max-h-[75vh] overflow-hidden flex flex-col">
+    <div class="p-5 border-b border-fg-700 flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-semibold text-fg-100">Load Design</h2>
+        <p class="text-xs text-fg-300 mt-0.5">Open a previously saved design</p>
+      </div>
+      <button onclick="closeLoadModal()" class="text-fg-400 hover:text-fg-200 p-1 rounded-lg hover:bg-fg-700">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-5 overflow-y-auto flex-1">
+      <div id="loadDesignGrid" class="grid grid-cols-2 gap-3"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TOP BAR ═══════════ -->
+<header class="h-11 bg-fg-800 border-b border-fg-700 flex items-center justify-between px-3 shrink-0" style="z-index:100000;position:relative">
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-1.5 cursor-pointer" onclick="showPresetModal()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-fg-accent">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.9"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.6"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.6"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.3"/>
+      </svg>
+      <span class="text-sm font-semibold tracking-tight text-fg-100">drwn</span>
+    </div>
+    <div class="h-4 w-px bg-fg-600"></div>
+    <input id="docTitle" type="text" value="Untitled Design" class="bg-transparent text-xs text-fg-300 border-none outline-none w-28 focus:text-fg-100" />
+    <div class="h-4 w-px bg-fg-600"></div>
+    <button onclick="showPresetModal()" class="flex items-center gap-1.5 text-xs text-fg-300 hover:text-fg-accent transition-colors px-2 py-1 rounded-md hover:bg-fg-700">
+      <svg class="preset-icon-desktop" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      <svg class="preset-icon-mobile" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span id="currentPresetLabel">800 × 600</span>
+    </button>
+  </div>
+
+  <!-- Contextual Toolbar -->
+  <div id="contextToolbar" class="flex items-center gap-1.5 flex-1 justify-center">
+    <div id="ctxCanvas" class="flex items-center gap-2 text-xs text-fg-300">
+      <span id="currentPresetLabel2">800 × 600</span>
+    </div>
+    <div id="ctxShape" class="hidden flex items-center gap-2">
+      <input type="color" id="ctxFill" value="#6c5ce7" class="w-6 h-6 rounded cursor-pointer" oninput="ctxUpdateProp('fill', this.value)" />
+      <div class="h-4 w-px bg-fg-600"></div>
+      <label class="text-[10px] text-fg-400">Opacity</label>
+      <input type="range" id="ctxOpacity" min="0" max="100" value="100" class="w-20" oninput="ctxUpdateProp('opacity', this.value)" />
+      <span class="text-[10px] text-fg-300 font-mono w-7" id="ctxOpacityVal">100</span>
+      <div class="h-4 w-px bg-fg-600"></div>
+      <button id="ctxAddImage" onclick="addClipImageSelected()" class="bg-fg-700 hover:bg-fg-600 text-fg-100 text-xs font-medium px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Add Image
+      </button>
+      <button id="ctxRemoveImage" onclick="removeClipImageSelected()" class="hidden bg-fg-700 hover:bg-fg-600 text-fg-danger text-xs font-medium px-3 py-1.5 rounded-md transition-colors">
+        Remove Image
+      </button>
+    </div>
+    <div id="ctxText" class="hidden flex items-center gap-1.5">
+      <select id="ctxFontFamily" class="bg-fg-700 border border-fg-600 rounded px-1.5 py-1 text-xs text-fg-100 outline-none w-36" onchange="ctxUpdateProp('fontFamily', this.value)"></select>
+      <input type="number" id="ctxFontSize" value="24" min="1" class="w-14 bg-fg-700 border border-fg-600 rounded px-1.5 py-1 text-xs text-fg-100 outline-none" onchange="ctxUpdateProp('fontSize', this.value)" />
+      <div class="h-4 w-px bg-fg-600"></div>
+      <button onclick="ctxToggleTextStyle('bold')" id="ctxBold" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-xs font-bold">B</button>
+      <button onclick="ctxToggleTextStyle('italic')" id="ctxItalic" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-xs italic">I</button>
+      <button onclick="ctxToggleTextStyle('underline')" id="ctxUnderline" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-xs underline">U</button>
+      <div class="h-4 w-px bg-fg-600"></div>
+      <input type="color" id="ctxTextColor" value="#000000" class="w-6 h-6 rounded cursor-pointer" oninput="ctxUpdateProp('textColor', this.value)" />
+      <div class="h-4 w-px bg-fg-600"></div>
+      <button onclick="ctxSetTextAlign('left')" class="toolbar-btn p-1 rounded text-fg-300"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
+      <button onclick="ctxSetTextAlign('center')" class="toolbar-btn p-1 rounded text-fg-300"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <button onclick="ctxSetTextAlign('right')" class="toolbar-btn p-1 rounded text-fg-300"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
+    </div>
+    <div id="ctxImage" class="hidden flex items-center gap-2">
+      <button onclick="openImageEdit()" class="bg-fg-700 hover:bg-fg-600 text-fg-100 text-xs font-medium px-3 py-1.5 rounded-md transition-colors">Edit Image</button>
+      <div class="h-4 w-px bg-fg-600"></div>
+      <button onclick="flipH()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Flip Horizontal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4 7l5 5-5 5V7z"/><path d="M20 7l-5 5 5 5V7z" opacity="0.4"/></svg>
+      </button>
+      <button onclick="flipV()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Flip Vertical">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M7 4l5 5-5 5H7V4z" transform="rotate(90 12 12)"/><path d="M7 20l5-5-5-5v10z" opacity="0.4" transform="rotate(90 12 12)"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-1">
+    <button onclick="undo()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Undo (Ctrl+Z)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    </button>
+    <button onclick="redo()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Redo (Ctrl+Y)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+    </button>
+    <div class="h-4 w-px bg-fg-600 mx-0.5"></div>
+    <button onclick="toggleGuides()" id="guidesToggleBtn" class="toolbar-btn p-1.5 rounded-md text-fg-300 active" title="Toggle Guides">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+    </button>
+    <div class="h-4 w-px bg-fg-600 mx-0.5"></div>
+    <button onclick="zoomOut()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Zoom Out">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
+    <span id="zoomLevel" class="text-[11px] text-fg-300 font-mono w-10 text-center cursor-pointer" onclick="resetZoom()">100%</span>
+    <button onclick="zoomIn()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Zoom In">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
+    <div class="h-4 w-px bg-fg-600 mx-0.5"></div>
+    <button onclick="openSaveModal()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Save Design (Ctrl+S)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    </button>
+    <button onclick="openLoadModal()" class="toolbar-btn p-1.5 rounded-md text-fg-300" title="Load Design">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    <div class="h-4 w-px bg-fg-600 mx-0.5"></div>
+    <div class="relative">
+      <button id="exportBtn" onclick="toggleExportDropdown(event)" class="bg-fg-accent hover:bg-fg-accentHover text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="exportDropdown" class="export-dropdown">
+        <button onclick="exportCanvas('jpg')">
+          <span class="export-format-label">JPG</span>
+          <span class="export-format-desc">Web optimized, smaller file</span>
+        </button>
+        <button onclick="exportCanvas('png')">
+          <span class="export-format-label">PNG</span>
+          <span class="export-format-desc">Lossless, transparent support</span>
+        </button>
+        <button onclick="exportCanvas('png2x')">
+          <span class="export-format-label">PNG @2x</span>
+          <span class="export-format-desc">High resolution, retina</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="flex flex-1 overflow-hidden">
+
+<!-- ═══════════ LEFT SIDEBAR (icons) ═══════════ -->
+<aside id="leftSidebar" class="left-sidebar">
+  <button onclick="setTool('select')" class="toolbar-btn active p-2 rounded-lg text-fg-200 mb-1" data-tool="select" title="Select (V)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+  </button>
+  <button onclick="setTool('hand')" class="toolbar-btn p-2 rounded-lg text-fg-200 mb-1" data-tool="hand" title="Hand / Pan (H)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v6m0 0V4a2 2 0 0 0-4 0v8m0 0v-2a2 2 0 0 0-4 0v4a8 8 0 0 0 16 0v-5a2 2 0 0 0-4 0"/></svg>
+  </button>
+  <div class="w-6 h-px bg-fg-600 my-1.5"></div>
+
+  <button onclick="togglePanel('templates')" class="left-sidebar-item" data-panel="templates" title="Templates">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Templates</span>
+  </button>
+  <button onclick="togglePanel('elements')" class="left-sidebar-item" data-panel="elements" title="Elements">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><circle cx="17.5" cy="6.5" r="3.5"/><path d="M6.5 14L3 21h7l-3.5-7z"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Elements</span>
+  </button>
+  <button onclick="togglePanel('text')" class="left-sidebar-item" data-panel="text" title="Text">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9.5" y1="20" x2="14.5" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    <span>Text</span>
+  </button>
+  <button onclick="togglePanel('uploads')" class="left-sidebar-item" data-panel="uploads" title="Uploads">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <span>Uploads</span>
+  </button>
+  <div class="flex-1"></div>
+  <button onclick="togglePanel('layers')" class="left-sidebar-item" data-panel="layers" title="Layers">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    <span>Layers</span>
+  </button>
+</aside>
+
+<!-- ═══════════ LEFT PANEL (expandable) ═══════════ -->
+<aside id="leftPanel" class="left-panel">
+  <!-- TEMPLATES PANEL -->
+  <div id="panel-templates" class="left-panel-content hidden">
+    <div class="panel-header">
+      <span>Templates</span>
+      <button onclick="closePanel()" class="text-fg-400 hover:text-fg-200">&times;</button>
+    </div>
+    <div class="p-3 overflow-y-auto" style="max-height:calc(100vh - 100px)">
+      <div id="templatePanelGrid"></div>
+    </div>
+  </div>
+
+  <!-- ELEMENTS PANEL -->
+  <div id="panel-elements" class="left-panel-content hidden">
+    <div class="panel-header">
+      <span>Elements</span>
+      <button onclick="closePanel()" class="text-fg-400 hover:text-fg-200">&times;</button>
+    </div>
+    <div class="p-3 overflow-y-auto" style="max-height:calc(100vh - 100px)">
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Basic</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addRect(); closePanel()" class="shape-btn" title="Rectangle"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
+        <button onclick="addCircle(); closePanel()" class="shape-btn" title="Circle"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/></svg></button>
+        <button onclick="addTriangle(); closePanel()" class="shape-btn" title="Triangle"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 22h20L12 2z"/></svg></button>
+        <button onclick="addLine(); closePanel()" class="shape-btn" title="Line"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="5" y1="19" x2="19" y2="5"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Shapes</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addStar(); closePanel()" class="shape-btn" title="Star"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+        <button onclick="addHexagon(); closePanel()" class="shape-btn" title="Hexagon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 21 7 21 17 12 22 3 17 3 7"/></svg></button>
+        <button onclick="addPentagon(); closePanel()" class="shape-btn" title="Pentagon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 22 9 18 21 6 21 2 9"/></svg></button>
+        <button onclick="addDiamond(); closePanel()" class="shape-btn" title="Diamond"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 22 12 12 22 2 12"/></svg></button>
+        <button onclick="addArrow(); closePanel()" class="shape-btn" title="Arrow Right"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 8h10V4l6 8-6 8v-4H5V8z"/></svg></button>
+        <button onclick="addArrowLeft(); closePanel()" class="shape-btn" title="Arrow Left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 8H9V4L3 12l6 8v-4h10V8z"/></svg></button>
+        <button onclick="addHeart(); closePanel()" class="shape-btn" title="Heart"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+        <button onclick="addCross(); closePanel()" class="shape-btn" title="Cross"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3z"/></svg></button>
+        <button onclick="addRoundedRect(); closePanel()" class="shape-btn" title="Rounded Rect"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="6"/></svg></button>
+        <button onclick="addOval(); closePanel()" class="shape-btn" title="Oval"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg></button>
+        <button onclick="addOctagon(); closePanel()" class="shape-btn" title="Octagon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="7.2 2 16.8 2 22 7.2 22 16.8 16.8 22 7.2 22 2 16.8 2 7.2"/></svg></button>
+        <button onclick="addRhombus(); closePanel()" class="shape-btn" title="Rhombus"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 20 12 12 22 4 12"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">More</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addParallelogram(); closePanel()" class="shape-btn" title="Parallelogram"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="7 4 22 4 17 20 2 20"/></svg></button>
+        <button onclick="addTrapezoid(); closePanel()" class="shape-btn" title="Trapezoid"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="6 4 18 4 22 20 2 20"/></svg></button>
+        <button onclick="addChevron(); closePanel()" class="shape-btn" title="Chevron"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="2 2 16 2 22 12 16 22 2 22 8 12"/></svg></button>
+        <button onclick="addSpeechBubble(); closePanel()" class="shape-btn" title="Speech Bubble"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h20v14H14l-4 6v-6H2V2z"/></svg></button>
+        <button onclick="addShield(); closePanel()" class="shape-btn" title="Shield"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l9 3v7c0 5-4 9-9 11C6 21 2 17 2 12V5l10-3z"/></svg></button>
+        <button onclick="addSemicircle(); closePanel()" class="shape-btn" title="Semicircle"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 18A10 10 0 0 1 22 18H2z"/></svg></button>
+        <button onclick="addLightning(); closePanel()" class="shape-btn" title="Lightning"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+        <button onclick="addRibbon(); closePanel()" class="shape-btn" title="Ribbon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="3 2 21 2 21 18 12 22 3 18"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Stars</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addStar(); closePanel()" class="shape-btn" title="Star 5pt"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+        <button onclick="addStar6(); closePanel()" class="shape-btn" title="Star 6pt"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15 7 21 7 18 12 21 17 15 17 12 22 9 17 3 17 6 12 3 7 9 7"/></svg></button>
+        <button onclick="addStar8(); closePanel()" class="shape-btn" title="Star 8pt"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 14.5 7.5 20 5.5 17.5 11 22 12 17.5 13 20 18.5 14.5 16.5 12 22 9.5 16.5 4 18.5 6.5 13 2 12 6.5 11 4 5.5 9.5 7.5"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Decorative</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addExtra('crescent'); closePanel()" class="shape-btn" title="Crescent"><svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><path d="M70 2A48 48 0 1 0 70 98A33 33 0 1 1 70 2Z"/></svg></button>
+        <button onclick="addExtra('moon'); closePanel()" class="shape-btn" title="Moon"><svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><path d="M40 5A45 45 0 1 0 40 95A50 50 0 0 1 40 5Z"/></svg></button>
+        <button onclick="addExtra('teardrop'); closePanel()" class="shape-btn" title="Teardrop"><svg width="28" height="28" viewBox="0 0 100 120" fill="none" stroke="currentColor" stroke-width="3"><path d="M50 5C30 30 10 55 10 75A40 40 0 0 0 90 75C90 55 70 30 50 5Z"/></svg></button>
+        <button onclick="addExtra('cloud'); closePanel()" class="shape-btn" title="Cloud"><svg width="28" height="28" viewBox="0 0 100 80" fill="none" stroke="currentColor" stroke-width="3"><path d="M25 68L20 68A17 17 0 0 1 18 35A22 22 0 0 1 48 15A22 22 0 0 1 78 18A17 17 0 0 1 82 35A17 17 0 0 1 80 68Z"/></svg></button>
+        <button onclick="addExtra('ring'); closePanel()" class="shape-btn" title="Ring"><svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><circle cx="50" cy="50" r="46"/><circle cx="50" cy="50" r="26"/></svg></button>
+        <button onclick="addExtra('leaf'); closePanel()" class="shape-btn" title="Leaf"><svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><path d="M50 95C22 75 5 50 12 25C20 5 42 0 50 0C58 0 80 5 88 25C95 50 78 75 50 95Z"/></svg></button>
+        <button onclick="addExtra('wave'); closePanel()" class="shape-btn" title="Wave"><svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><path d="M0 55C18 25 35 25 50 50C65 75 82 75 100 45L100 100L0 100Z"/></svg></button>
+        <button onclick="addExtra('flower'); closePanel()" class="shape-btn" title="Flower"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="5" r="3"/><circle cx="17.2" cy="8" r="3"/><circle cx="17.2" cy="16" r="3"/><circle cx="12" cy="19" r="3"/><circle cx="6.8" cy="16" r="3"/><circle cx="6.8" cy="8" r="3"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Symbols</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addExtra('pin'); closePanel()" class="shape-btn" title="Location Pin"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
+        <button onclick="addExtra('eye'); closePanel()" class="shape-btn" title="Eye"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button onclick="addExtra('chatRound'); closePanel()" class="shape-btn" title="Chat Bubble"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+        <button onclick="addExtra('xMark'); closePanel()" class="shape-btn" title="X Mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Arrows</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addExtra('arrowUp'); closePanel()" class="shape-btn" title="Arrow Up"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L3 11h5v11h8V11h5L12 2z"/></svg></button>
+        <button onclick="addExtra('arrowDown'); closePanel()" class="shape-btn" title="Arrow Down"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22L3 13h5V2h8v11h5L12 22z"/></svg></button>
+        <button onclick="addExtra('doubleArrow'); closePanel()" class="shape-btn" title="Double Arrow"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 12L5 5v4h14V5l5 7-5 7v-4H5v4L0 12z"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Badges</p>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="addExtra('starburst'); closePanel()" class="shape-btn" title="Starburst"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,1 14,7 18,3 16,9 22,8 17,12 22,16 16,15 18,21 14,17 12,23 10,17 6,21 8,15 2,16 7,12 2,8 8,9 6,3 10,7"/></svg></button>
+        <button onclick="addExtra('explosion'); closePanel()" class="shape-btn" title="Explosion"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,1 15,8 22,5 17,11 23,12 17,13 22,19 15,16 12,23 9,16 2,19 7,13 1,12 7,11 2,5 9,8"/></svg></button>
+        <button onclick="addExtra('badge'); closePanel()" class="shape-btn" title="Badge"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10" stroke-dasharray="2 1.5"/></svg></button>
+        <button onclick="addExtra('tag'); closePanel()" class="shape-btn" title="Tag"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h15l5 9-5 9H2z"/><circle cx="7" cy="12" r="1.5"/></svg></button>
+        <button onclick="addExtra('bannerH'); closePanel()" class="shape-btn" title="Banner"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="2,3 22,3 24,12 22,21 2,21 0,12"/></svg></button>
+        <button onclick="addExtra('sun'); closePanel()" class="shape-btn" title="Sun"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
+      </div>
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Nature & Objects</p>
+      <div class="grid grid-cols-4 gap-2">
+        <button onclick="addExtra('mountain'); closePanel()" class="shape-btn" title="Mountain"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="1,22 7,6 11,14 16,3 20,12 23,22"/></svg></button>
+        <button onclick="addExtra('house'); closePanel()" class="shape-btn" title="House"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
+        <button onclick="addExtra('tree'); closePanel()" class="shape-btn" title="Tree"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,2 20,10 16,10 22,17 8,17 14,10 8,10 12,2"/><rect x="10" y="17" width="4" height="5"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEXT PANEL -->
+  <div id="panel-text" class="left-panel-content hidden">
+    <div class="panel-header">
+      <span>Text</span>
+      <button onclick="closePanel()" class="text-fg-400 hover:text-fg-200">&times;</button>
+    </div>
+    <div class="p-3 overflow-y-auto" style="max-height:calc(100vh - 100px)">
+      <!-- CTA -->
+      <button onclick="addText(); closePanel()" class="w-full bg-fg-accent hover:bg-fg-accentHover text-white text-sm font-medium py-2.5 rounded-lg mb-4 transition-colors flex items-center justify-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add a text box
+      </button>
+
+      <!-- Text Style Presets -->
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Text Styles</p>
+      <div class="grid grid-cols-1 gap-2 mb-5">
+        <button onclick="addHeading(); closePanel()" class="text-left bg-fg-700 hover:bg-fg-600 rounded-xl p-3 transition-colors group">
+          <span class="block text-lg font-bold text-fg-100 leading-tight group-hover:text-white">Add a heading</span>
+          <span class="text-[9px] text-fg-500 uppercase tracking-wider mt-1 block">48px — Bold</span>
+        </button>
+        <button onclick="addSubheading(); closePanel()" class="text-left bg-fg-700 hover:bg-fg-600 rounded-xl p-3 transition-colors group">
+          <span class="block text-sm font-semibold text-fg-200 leading-tight group-hover:text-white">Add a subheading</span>
+          <span class="text-[9px] text-fg-500 uppercase tracking-wider mt-1 block">28px — SemiBold</span>
+        </button>
+        <button onclick="addBodyText(); closePanel()" class="text-left bg-fg-700 hover:bg-fg-600 rounded-xl p-3 transition-colors group">
+          <span class="block text-xs text-fg-300 leading-tight group-hover:text-white">Add body text for paragraphs</span>
+          <span class="text-[9px] text-fg-500 uppercase tracking-wider mt-1 block">16px — Regular</span>
+        </button>
+      </div>
+
+      <!-- Font Combinations -->
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Font Combinations</p>
+      <div id="fontCombosDesktop" class="grid grid-cols-1 gap-2 mb-5"></div>
+
+      <!-- Browse Fonts -->
+      <p class="text-[10px] text-fg-400 uppercase tracking-widest mb-2">Browse Fonts</p>
+      <div id="fontCategoryTabs" class="flex gap-1 flex-wrap mb-3"></div>
+      <div class="font-preview-list overflow-y-auto" style="max-height:300px"></div>
+    </div>
+  </div>
+
+  <!-- UPLOADS PANEL -->
+  <div id="panel-uploads" class="left-panel-content hidden">
+    <div class="panel-header">
+      <span>Uploads</span>
+      <button onclick="closePanel()" class="text-fg-400 hover:text-fg-200">&times;</button>
+    </div>
+    <div class="p-3">
+      <button onclick="addImage()" class="w-full bg-fg-accent hover:bg-fg-accentHover text-white text-sm font-medium py-2.5 rounded-lg mb-3 transition-colors flex items-center justify-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Image
+      </button>
+      <p class="text-[10px] text-fg-300 text-center">Or drag and drop an image onto the canvas</p>
+    </div>
+  </div>
+
+  <!-- LAYERS PANEL -->
+  <div id="panel-layers" class="left-panel-content hidden">
+    <div class="panel-header">
+      <span>Layers</span>
+      <button onclick="closePanel()" class="text-fg-400 hover:text-fg-200">&times;</button>
+    </div>
+    <div id="layersList" class="flex-1 overflow-y-auto p-1"></div>
+  </div>
+
+  <!-- IMAGE EDIT PANEL -->
+  <div id="panel-imageEdit" class="left-panel-content hidden">
+    <div class="panel-header">
+      <button onclick="closePanel()" class="text-fg-400 hover:text-fg-200 mr-2">←</button>
+      <span>Adjust Image</span>
+      <button onclick="resetFilters()" class="text-[10px] text-fg-accent hover:text-fg-accentLight ml-auto">Reset All</button>
+    </div>
+    <div id="filterSliders" class="p-3"></div>
+  </div>
+</aside>
+
+<!-- ═══════════ CANVAS AREA ═══════════ -->
+<main class="flex-1 overflow-hidden relative bg-fg-900" id="canvasArea">
+  <div class="absolute inset-0" style="background-image: radial-gradient(circle, #1a1a26 1px, transparent 1px); background-size: 20px 20px;" id="gridBg"></div>
+  <div id="canvasWrapper" class="absolute" style="transform-origin: 0 0;">
+    <div id="canvas" class="bg-white shadow-2xl relative" style="width: 800px; height: 600px;"></div>
+  </div>
+</main>
+
+<!-- ═══════════ RIGHT PANEL ═══════════ -->
+<aside id="propsPanel" class="w-64 bg-fg-800 border-l border-fg-700 overflow-y-auto shrink-0 z-40">
+
+  <!-- Canvas props -->
+  <div id="canvasProps">
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Canvas</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">Width</label>
+          <input type="number" id="canvasW" value="800" onchange="resizeCanvas()" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" />
+        </div>
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">Height</label>
+          <input type="number" id="canvasH" value="600" onchange="resizeCanvas()" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" />
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="text-[10px] text-fg-400 block mb-0.5">Background</label>
+        <div class="flex gap-2 items-center">
+          <input type="color" id="canvasBg" value="#ffffff" oninput="setCanvasBg()" class="w-8 h-8 rounded cursor-pointer shrink-0" />
+          <input type="text" id="canvasBgHex" value="#ffffff" onchange="setCanvasBgHex()" class="flex-1 min-w-0 bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 font-mono outline-none focus:border-fg-accent" />
+        </div>
+      </div>
+    </div>
+    <!-- Quick presets inline -->
+    <div class="panel-section p-3">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest">Quick Presets</h3>
+        <button onclick="showPresetModal()" class="text-[10px] text-fg-accent hover:text-fg-accentLight transition-colors">All Presets →</button>
+      </div>
+      <div class="grid grid-cols-2 gap-1.5" id="quickPresets"></div>
+    </div>
+  </div>
+
+  <!-- Element props -->
+  <div id="elementProps" class="hidden">
+    <!-- Z-Order controls -->
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Layer Order</h3>
+      <div class="flex gap-1.5">
+        <button onclick="zBringToFront()" class="z-btn group" title="Bring to Front (Ctrl+Shift+])">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
+        </button>
+        <button onclick="zMoveUp()" class="z-btn" title="Move Forward (Ctrl+])">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+        <button onclick="zMoveDown()" class="z-btn" title="Move Backward (Ctrl+[)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button onclick="zSendToBack()" class="z-btn" title="Send to Back (Ctrl+Shift+[)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/></svg>
+        </button>
+        <div class="flex-1"></div>
+        <span id="zOrderLabel" class="text-[10px] text-fg-400 self-center font-mono"></span>
+      </div>
+    </div>
+
+    <!-- Transform -->
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Transform</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">X</label>
+          <input type="number" id="propX" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('x')" />
+        </div>
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">Y</label>
+          <input type="number" id="propY" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('y')" />
+        </div>
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">W</label>
+          <input type="number" id="propW" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('w')" />
+        </div>
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">H</label>
+          <input type="number" id="propH" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('h')" />
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="text-[10px] text-fg-400 block mb-1">Rotation</label>
+        <div class="flex gap-1 mb-1.5">
+          <button onclick="rotateBy(-90)" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-[10px]" title="Rotate -90°">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 2v6h6"/><path d="M2.5 8a10 10 0 0 1 17.13-4"/></svg>
+          </button>
+          <button onclick="rotateBy(-45)" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-[10px]" title="-45°">-45</button>
+          <button onclick="rotateBy(-15)" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-[10px]" title="-15°">-15</button>
+          <button onclick="rotateTo(0)" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-[10px]" title="Reset to 0°">0°</button>
+          <button onclick="rotateBy(15)" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-[10px]" title="+15°">+15</button>
+          <button onclick="rotateBy(45)" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-[10px]" title="+45°">+45</button>
+          <button onclick="rotateBy(90)" class="toolbar-btn px-1.5 py-1 rounded text-fg-300 text-[10px]" title="Rotate +90°">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6"/><path d="M21.5 8A10 10 0 0 0 4.37 4"/></svg>
+          </button>
+        </div>
+        <div class="flex gap-2 items-center">
+          <input type="range" id="propRotation" min="0" max="360" value="0" class="flex-1" oninput="updateProp('rotation')" />
+          <input type="number" id="propRotationNum" min="0" max="360" value="0" class="w-14 bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('rotationNum')" />
+        </div>
+      </div>
+      <div class="mt-2 flex gap-1">
+        <button onclick="alignElement('left')" class="toolbar-btn p-1.5 rounded text-fg-400" title="Align Left"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="2" x2="4" y2="22"/><rect x="8" y="6" width="12" height="4"/><rect x="8" y="14" width="8" height="4"/></svg></button>
+        <button onclick="alignElement('centerH')" class="toolbar-btn p-1.5 rounded text-fg-400" title="Center H"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><rect x="4" y="6" width="16" height="4"/><rect x="6" y="14" width="12" height="4"/></svg></button>
+        <button onclick="alignElement('right')" class="toolbar-btn p-1.5 rounded text-fg-400" title="Align Right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="20" y1="2" x2="20" y2="22"/><rect x="4" y="6" width="12" height="4"/><rect x="8" y="14" width="8" height="4"/></svg></button>
+        <button onclick="alignElement('top')" class="toolbar-btn p-1.5 rounded text-fg-400" title="Align Top"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="4" x2="22" y2="4"/><rect x="6" y="8" width="4" height="12"/><rect x="14" y="8" width="4" height="8"/></svg></button>
+        <button onclick="alignElement('centerV')" class="toolbar-btn p-1.5 rounded text-fg-400" title="Center V"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="12" x2="22" y2="12"/><rect x="6" y="4" width="4" height="16"/><rect x="14" y="6" width="4" height="12"/></svg></button>
+        <button onclick="alignElement('bottom')" class="toolbar-btn p-1.5 rounded text-fg-400" title="Align Bottom"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="20" x2="22" y2="20"/><rect x="6" y="4" width="4" height="12"/><rect x="14" y="8" width="4" height="8"/></svg></button>
+      </div>
+    </div>
+
+    <!-- Fill -->
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Fill</h3>
+      <div class="flex gap-2 items-center mb-2">
+        <input type="color" id="propFill" value="#6c5ce7" class="w-8 h-8 rounded cursor-pointer shrink-0" oninput="updateProp('fill')" />
+        <input type="text" id="propFillHex" value="#6c5ce7" class="flex-1 min-w-0 bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 font-mono outline-none focus:border-fg-accent" onchange="updateProp('fillHex')" />
+      </div>
+      <div>
+        <label class="text-[10px] text-fg-400 block mb-0.5">Opacity</label>
+        <div class="flex gap-2 items-center">
+          <input type="range" id="propOpacityRange" min="0" max="100" value="100" class="flex-1" oninput="document.getElementById('propOpacity').value=this.value; updateProp('opacity')" />
+          <input type="number" id="propOpacity" min="0" max="100" value="100" class="w-12 bg-fg-700 border border-fg-600 rounded px-1.5 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="document.getElementById('propOpacityRange').value=this.value; updateProp('opacity')" />
+          <span class="text-[10px] text-fg-400">%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Border -->
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Border</h3>
+      <div class="flex gap-2 items-center mb-2">
+        <input type="color" id="propBorderColor" value="#000000" class="w-8 h-8 rounded cursor-pointer shrink-0" oninput="updateProp('borderColor')" />
+        <input type="text" id="propBorderColorHex" value="#000000" class="flex-1 min-w-0 bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 font-mono outline-none focus:border-fg-accent" onchange="updateProp('borderColorHex')" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">Width</label>
+          <input type="number" id="propBorderWidth" min="0" value="0" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" oninput="updateProp('borderWidth')" />
+        </div>
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">Style</label>
+          <select id="propBorderStyle" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('borderStyle')">
+            <option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option><option value="double">Double</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="text-[10px] text-fg-400 block mb-0.5">Radius</label>
+        <div class="flex gap-2 items-center">
+          <input type="range" id="propRadius" min="0" max="200" value="0" class="flex-1" oninput="updateProp('radius')" />
+          <input type="number" id="propRadiusNum" min="0" value="0" class="w-14 bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('radiusNum')" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Shadow -->
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Shadow</h3>
+      <div class="grid grid-cols-3 gap-2">
+        <div><label class="text-[10px] text-fg-400 block mb-0.5">X</label><input type="number" id="propShadowX" value="0" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" oninput="updateProp('shadow')" /></div>
+        <div><label class="text-[10px] text-fg-400 block mb-0.5">Y</label><input type="number" id="propShadowY" value="0" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" oninput="updateProp('shadow')" /></div>
+        <div><label class="text-[10px] text-fg-400 block mb-0.5">Blur</label><input type="number" id="propShadowBlur" min="0" value="0" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" oninput="updateProp('shadow')" /></div>
+      </div>
+      <div class="flex gap-2 items-center mt-2">
+        <input type="color" id="propShadowColor" value="#000000" class="w-8 h-8 rounded cursor-pointer shrink-0" oninput="updateProp('shadow')" />
+        <span class="text-[10px] text-fg-400 shrink-0">Color</span>
+        <div class="flex-1"></div>
+        <input type="number" id="propShadowOpacity" min="0" max="100" value="25" class="w-12 bg-fg-700 border border-fg-600 rounded px-1.5 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" oninput="updateProp('shadow')" />
+        <span class="text-[10px] text-fg-400 shrink-0">%</span>
+      </div>
+    </div>
+
+    <!-- Text props -->
+    <div id="textProps" class="hidden">
+      <div class="panel-section p-3">
+        <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Typography</h3>
+        <select id="propFontFamily" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent mb-2" onchange="updateProp('fontFamily')">
+          <option value="DM Sans">DM Sans</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Verdana">Verdana</option><option value="Impact">Impact</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Palatino">Palatino</option><option value="Garamond">Garamond</option>
+        </select>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <div><label class="text-[10px] text-fg-400 block mb-0.5">Size</label><input type="number" id="propFontSize" value="24" min="1" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('fontSize')" /></div>
+          <div><label class="text-[10px] text-fg-400 block mb-0.5">Weight</label><select id="propFontWeight" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('fontWeight')"><option value="300">Light</option><option value="400">Regular</option><option value="500">Medium</option><option value="600">SemiBold</option><option value="700" selected>Bold</option></select></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <div><label class="text-[10px] text-fg-400 block mb-0.5">Line H.</label><input type="number" id="propLineHeight" value="1.4" min="0.5" max="4" step="0.1" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('lineHeight')" /></div>
+          <div><label class="text-[10px] text-fg-400 block mb-0.5">Letter Sp.</label><input type="number" id="propLetterSpacing" value="0" step="0.5" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateProp('letterSpacing')" /></div>
+        </div>
+        <div class="flex gap-1 mb-2">
+          <button onclick="toggleTextStyle('bold')" id="btnBold" class="toolbar-btn px-2 py-1 rounded text-fg-300 text-xs font-bold">B</button>
+          <button onclick="toggleTextStyle('italic')" id="btnItalic" class="toolbar-btn px-2 py-1 rounded text-fg-300 text-xs italic">I</button>
+          <button onclick="toggleTextStyle('underline')" id="btnUnderline" class="toolbar-btn px-2 py-1 rounded text-fg-300 text-xs underline">U</button>
+          <button onclick="toggleTextStyle('lineThrough')" id="btnStrike" class="toolbar-btn px-2 py-1 rounded text-fg-300 text-xs line-through">S</button>
+          <div class="w-px h-6 bg-fg-600 mx-0.5 self-center"></div>
+          <button onclick="setTextAlign('left')" class="toolbar-btn px-2 py-1 rounded text-fg-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
+          <button onclick="setTextAlign('center')" class="toolbar-btn px-2 py-1 rounded text-fg-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+          <button onclick="setTextAlign('right')" class="toolbar-btn px-2 py-1 rounded text-fg-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
+        </div>
+        <div>
+          <label class="text-[10px] text-fg-400 block mb-0.5">Text Color</label>
+          <div class="flex gap-2 items-center">
+            <input type="color" id="propTextColor" value="#000000" class="w-8 h-8 rounded cursor-pointer shrink-0" oninput="updateProp('textColor')" />
+            <input type="text" id="propTextColorHex" value="#000000" class="flex-1 min-w-0 bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 font-mono outline-none focus:border-fg-accent" onchange="updateProp('textColorHex')" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-select props -->
+  <div id="multiSelectProps" class="hidden">
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Multi-Selection</h3>
+      <p id="multiSelectCount" class="text-sm text-fg-200 mb-3">0 elements selected</p>
+      <div class="flex gap-1.5 mb-3">
+        <button id="btnGroupSelected" onclick="groupSelected()" class="flex-1 bg-fg-700 border border-fg-600 hover:border-fg-accent rounded-lg py-2 text-xs text-fg-200 transition-all">⊞ Group <span class="text-fg-400 text-[10px]">Ctrl+G</span></button>
+        <button id="btnUngroupSelected" onclick="ungroupSelected()" class="flex-1 bg-fg-700 border border-fg-600 hover:border-fg-accent rounded-lg py-2 text-xs text-fg-200 transition-all" style="display:none">⊟ Ungroup <span class="text-fg-400 text-[10px]">Ctrl+⇧+G</span></button>
+      </div>
+      <div class="flex gap-1.5 mb-3">
+        <button onclick="duplicateSelected()" class="flex-1 bg-fg-700 border border-fg-600 hover:border-fg-accent rounded-lg py-2 text-xs text-fg-200 transition-all">⧉ Duplicate</button>
+        <button onclick="deleteSelected()" class="flex-1 bg-fg-700 border border-fg-600 hover:border-fg-accent rounded-lg py-2 text-xs text-fg-200 transition-all text-red-400">✕ Delete</button>
+      </div>
+    </div>
+    <div class="panel-section p-3">
+      <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Align</h3>
+      <div class="grid grid-cols-3 gap-1.5">
+        <button onclick="alignElement('left')" class="z-btn w-full" title="Align Left"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="3" x2="4" y2="21"/><rect x="8" y="5" width="12" height="5" rx="1"/><rect x="8" y="14" width="8" height="5" rx="1"/></svg></button>
+        <button onclick="alignElement('centerH')" class="z-btn w-full" title="Align Center H"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="3" x2="12" y2="21"/><rect x="5" y="5" width="14" height="5" rx="1"/><rect x="7" y="14" width="10" height="5" rx="1"/></svg></button>
+        <button onclick="alignElement('right')" class="z-btn w-full" title="Align Right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="20" y1="3" x2="20" y2="21"/><rect x="4" y="5" width="12" height="5" rx="1"/><rect x="8" y="14" width="8" height="5" rx="1"/></svg></button>
+        <button onclick="alignElement('top')" class="z-btn w-full" title="Align Top"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="4" x2="21" y2="4"/><rect x="5" y="8" width="5" height="12" rx="1"/><rect x="14" y="8" width="5" height="8" rx="1"/></svg></button>
+        <button onclick="alignElement('centerV')" class="z-btn w-full" title="Align Center V"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><rect x="5" y="5" width="5" height="14" rx="1"/><rect x="14" y="7" width="5" height="10" rx="1"/></svg></button>
+        <button onclick="alignElement('bottom')" class="z-btn w-full" title="Align Bottom"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="20" x2="21" y2="20"/><rect x="5" y="4" width="5" height="12" rx="1"/><rect x="14" y="8" width="5" height="8" rx="1"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+</aside>
+</div>
+
+<div id="contextMenu" class="context-menu hidden"></div>
+<div id="toast" class="toast"></div>
+<input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)" />
+
+<!-- ═══════════ MOBILE BOTTOM NAV ═══════════ -->
+<nav id="mobileBottomNav" class="mobile-bottom-nav">
+  <button onclick="mobileOpenSheet('elements')" data-mobile-tab="elements" class="mobile-nav-btn">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><circle cx="17.5" cy="6.5" r="3.5"/><path d="M6.5 14L3 21h7l-3.5-7z"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Elements</span>
+  </button>
+  <button onclick="mobileOpenSheet('text')" data-mobile-tab="text" class="mobile-nav-btn">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9.5" y1="20" x2="14.5" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    <span>Text</span>
+  </button>
+  <button onclick="mobileOpenSheet('uploads')" data-mobile-tab="uploads" class="mobile-nav-btn mobile-fab-btn">
+    <div class="mobile-fab-circle">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+    <span>Upload</span>
+  </button>
+  <button onclick="mobileOpenSheet('layers')" data-mobile-tab="layers" class="mobile-nav-btn">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    <span>Layers</span>
+  </button>
+  <button onclick="mobileOpenSheet('properties')" data-mobile-tab="properties" class="mobile-nav-btn">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>Props</span>
+  </button>
+</nav>
+
+<!-- ═══════════ MOBILE SHEET OVERLAY & PANEL ═══════════ -->
+<div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="mobileCloseSheet()"></div>
+<div id="mobileSheet" class="mobile-sheet">
+  <div class="mobile-sheet-handle" id="mobileSheetHandle"><div class="mobile-sheet-pill"></div></div>
+  <div id="mobileSheetContent" class="mobile-sheet-content"></div>
+</div>
+
+<!-- ═══════════ MOBILE CONTEXT BAR ═══════════ -->
+<div id="mobileContextBar" class="mobile-context-bar hidden">
+  <div id="mobileCtxContent" class="mobile-ctx-content"></div>
+</div>
+
+<!-- ═══════════ MOBILE ZOOM INDICATOR ═══════════ -->
+<div id="mobileZoomIndicator" class="mobile-zoom-indicator"></div>
+
+<script src="script/data.js"></script>
+<script src="script/main.js"></script>
+<script src="script/elements.js"></script>
+<script src="script/panels.js"></script>
+<script src="script/canvas.js"></script>
+<script src="script/mobile.js"></script>
+<script src="script/init.js"></script>
+</body>
+</html>
