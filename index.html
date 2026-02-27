@@ -190,7 +190,7 @@ tailwind.config = {
 <header class="h-11 bg-fg-800 border-b border-fg-700 flex items-center justify-between px-3 shrink-0" style="z-index:100000;position:relative">
   <div class="flex items-center gap-3">
     <div class="flex items-center gap-1.5 cursor-pointer" onclick="showPresetModal()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-fg-accent">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-fg-accent logo-glow">
         <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.9"/>
         <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.6"/>
         <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.6"/>
@@ -802,6 +802,8 @@ tailwind.config = {
 <!-- ═══════════ MOBILE CONTEXT BAR ═══════════ -->
 <div id="mobileContextBar" class="mobile-context-bar hidden">
   <div id="mobileCtxContent" class="mobile-ctx-content"></div>
+  <div id="mobileCtxScrollHint" class="mobile-ctx-scroll-hint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+  <div id="mobileCtxActions" class="mobile-ctx-actions"></div>
 </div>
 
 <!-- ═══════════ MOBILE ZOOM INDICATOR ═══════════ -->

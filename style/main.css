@@ -367,10 +367,19 @@ select {
 .mobile-context-bar.hidden { display: none; }
 .mobile-ctx-content {
   display: flex; align-items: center; gap: 8px;
-  overflow-x: auto; width: 100%;
+  overflow-x: auto; flex: 1; min-width: 0;
   -webkit-overflow-scrolling: touch;
 }
 .mobile-ctx-content::-webkit-scrollbar { display: none; }
+.mobile-ctx-scroll-hint {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 20px; height: 36px; color: #7a7a9a;
+  animation: ctxPulse 1.5s ease-in-out infinite;
+}
+@keyframes ctxPulse {
+  0%, 100% { opacity: 0.4; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(3px); }
+}
 .mobile-ctx-btn {
   display: flex; align-items: center; justify-content: center;
   min-width: 36px; height: 36px; border-radius: 8px;
@@ -383,6 +392,10 @@ select {
 .mobile-ctx-btn.danger { color: #e17055; }
 .mobile-ctx-btn.danger:active { background: rgba(225,112,85,0.2); border-color: #e17055; }
 .mobile-ctx-divider { width: 1px; height: 24px; background: #252535; flex-shrink: 0; }
+.mobile-ctx-actions {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  margin-left: 6px; padding-left: 8px; border-left: 1px solid #252535;
+}
 
 /* ═══ MOBILE ZOOM INDICATOR ═══ */
 .mobile-zoom-indicator {
@@ -400,6 +413,16 @@ select {
 /* RESPONSIVE MEDIA QUERIES                                    */
 /* ═══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+  /* Glow pulse on logo icon so users know it opens templates */
+  .logo-glow {
+    animation: logoGlow 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(108,92,231,0.6));
+  }
+  @keyframes logoGlow {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(108,92,231,0.4)); }
+    50% { filter: drop-shadow(0 0 10px rgba(108,92,231,0.9)); }
+  }
+
   /* Lock viewport: prevent browser scroll/zoom from intercepting touches */
   html, body {
     overflow: hidden;

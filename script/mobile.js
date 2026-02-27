@@ -1110,13 +1110,18 @@ function updateMobileContextBar() {
 
   const bar = document.getElementById('mobileContextBar');
   const content = document.getElementById('mobileCtxContent');
-  if (!bar || !content) return;
+  const actions = document.getElementById('mobileCtxActions');
+  const scrollHint = document.getElementById('mobileCtxScrollHint');
+  if (!bar || !content || !actions) return;
 
   if (selectedIds.size === 0) {
     bar.classList.add('hidden');
     bar.classList.remove('visible');
     return;
   }
+
+  const dupIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+  const delIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
 
   // Multi-select context bar
   if (selectedIds.size > 1) {
@@ -1131,10 +1136,10 @@ function updateMobileContextBar() {
       ${allGrouped
         ? '<button class="mobile-ctx-btn" onclick="ungroupSelected()">Ungroup</button>'
         : '<button class="mobile-ctx-btn" onclick="groupSelected()">Group</button>'}
-      <div class="mobile-ctx-divider"></div>
-      <button class="mobile-ctx-btn" onclick="duplicateSelected()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-      <button class="mobile-ctx-btn danger" onclick="deleteSelected()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
       <span style="font-size:10px;color:#7a7a9a;padding:0 4px;flex-shrink:0;">${selectedIds.size} sel</span>`;
+    actions.innerHTML = `
+      <button class="mobile-ctx-btn" onclick="duplicateSelected()">${dupIcon}</button>
+      <button class="mobile-ctx-btn danger" onclick="deleteSelected()">${delIcon}</button>`;
     return;
   }
 
@@ -1149,12 +1154,16 @@ function updateMobileContextBar() {
   bar.classList.add('visible');
 
   const ab = (active) => active ? 'background:rgba(108,92,231,0.2);color:#6c5ce7;border-color:#6c5ce7;' : '';
-  const msToggleStyle = mobileMultiSelect ? 'background:rgba(108,92,231,0.2);color:#6c5ce7;border-color:#6c5ce7;' : '';
   const eid = el.id;
-  let html = `<button class="mobile-ctx-btn" style="${msToggleStyle}" onclick="mobileMultiSelect=!mobileMultiSelect;updateMobileContextBar()">Multi</button><div class="mobile-ctx-divider"></div>`;
 
+  // Pinned actions — always visible on the right
+  actions.innerHTML = `
+    <button class="mobile-ctx-btn" onclick="duplicateElement('${eid}')">${dupIcon}</button>
+    <button class="mobile-ctx-btn danger" onclick="deleteElement('${eid}')">${delIcon}</button>`;
+
+  // Scrollable tools on the left
   if (el.type === 'text') {
-    html = `
+    content.innerHTML = `
       <input type="color" value="${el.textColor || '#000000'}" oninput="mobileCtxUpdate('textColor',this.value)" style="width:32px;height:32px;border-radius:6px;border:none;cursor:pointer;flex-shrink:0;" />
       <div class="mobile-ctx-divider"></div>
       <button class="mobile-ctx-btn" style="${ab(el.bold)}font-weight:700;" onclick="mobileCtxToggle('bold')">B</button>
@@ -1164,31 +1173,31 @@ function updateMobileContextBar() {
       <div class="mobile-ctx-divider"></div>
       <button class="mobile-ctx-btn" style="${ab(el.textAlign==='left')}padding:0 8px;" onclick="mobileCtxUpdate('textAlign','left')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
       <button class="mobile-ctx-btn" style="${ab(el.textAlign==='center')}padding:0 8px;" onclick="mobileCtxUpdate('textAlign','center')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
-      <button class="mobile-ctx-btn" style="${ab(el.textAlign==='right')}padding:0 8px;" onclick="mobileCtxUpdate('textAlign','right')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
-      <div class="mobile-ctx-divider"></div>
-      <button class="mobile-ctx-btn" onclick="duplicateElement('${eid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-      <button class="mobile-ctx-btn danger" onclick="deleteElement('${eid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`;
+      <button class="mobile-ctx-btn" style="${ab(el.textAlign==='right')}padding:0 8px;" onclick="mobileCtxUpdate('textAlign','right')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>`;
   } else if (el.type === 'image') {
-    html = `
+    content.innerHTML = `
       <button class="mobile-ctx-btn" onclick="openImageEdit()">Edit</button>
       <div class="mobile-ctx-divider"></div>
       <button class="mobile-ctx-btn" onclick="flipH()">Flip H</button>
-      <button class="mobile-ctx-btn" onclick="flipV()">Flip V</button>
-      <div class="mobile-ctx-divider"></div>
-      <button class="mobile-ctx-btn" onclick="duplicateElement('${eid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-      <button class="mobile-ctx-btn danger" onclick="deleteElement('${eid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`;
+      <button class="mobile-ctx-btn" onclick="flipV()">Flip V</button>`;
   } else {
-    html = `
+    content.innerHTML = `
       <input type="color" value="${el.fill === 'transparent' ? '#ffffff' : el.fill}" oninput="mobileCtxUpdate('fill',this.value)" style="width:32px;height:32px;border-radius:6px;border:none;cursor:pointer;flex-shrink:0;" />
       <div class="mobile-ctx-divider"></div>
       <button class="mobile-ctx-btn" onclick="zMoveUp()" title="Forward"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
-      <button class="mobile-ctx-btn" onclick="zMoveDown()" title="Backward"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
-      <div class="mobile-ctx-divider"></div>
-      <button class="mobile-ctx-btn" onclick="duplicateElement('${eid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-      <button class="mobile-ctx-btn danger" onclick="deleteElement('${eid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`;
+      <button class="mobile-ctx-btn" onclick="zMoveDown()" title="Backward"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>`;
   }
 
-  content.innerHTML = html;
+  // Show/hide scroll arrow hint
+  if (scrollHint) {
+    requestAnimationFrame(() => {
+      scrollHint.style.display = content.scrollWidth > content.clientWidth ? 'flex' : 'none';
+    });
+    content.onscroll = () => {
+      if (!scrollHint) return;
+      scrollHint.style.display = (content.scrollLeft + content.clientWidth >= content.scrollWidth - 5) ? 'none' : 'flex';
+    };
+  }
 }
 
 function mobileCtxUpdate(prop, value) {
