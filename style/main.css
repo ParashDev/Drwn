@@ -11,6 +11,8 @@ body { font-family: 'DM Sans', sans-serif; overflow: hidden; }
 .canvas-element.selected .resize-handle { display: block; }
 .canvas-element .resize-handle { display: none; }
 .canvas-element.multi-selected { outline: 2px solid rgba(108,92,231,0.5); outline-offset: 1px; }
+.canvas-element.cropping { outline: 2px dashed #6c5ce7 !important; outline-offset: 3px; cursor: grab !important; }
+.canvas-element.cropping:active { cursor: grabbing !important; }
 
 /* Multi-select bounding box */
 .multi-select-bbox {

@@ -31,6 +31,19 @@ function selectElement(id) {
     document.getElementById('propShadowBlur').value = el.shadowBlur||0;
     document.getElementById('propShadowColor').value = el.shadowColor||'#000000';
     document.getElementById('propShadowOpacity').value = el.shadowOpacity||25;
+    // Image position controls
+    const imgPosPanel = document.getElementById('imagePositionProps');
+    if (imgPosPanel) {
+      if (el.type === 'image' || el.clipImage) {
+        imgPosPanel.classList.remove('hidden');
+        document.getElementById('propImgZoom').value = Math.round((el.imgZoom || 1) * 100);
+        document.getElementById('propImgZoomVal').textContent = Math.round((el.imgZoom || 1) * 100) + '%';
+        document.getElementById('propImgOffsetX').value = Math.round(el.imgOffsetX || 0);
+        document.getElementById('propImgOffsetY').value = Math.round(el.imgOffsetY || 0);
+      } else {
+        imgPosPanel.classList.add('hidden');
+      }
+    }
     if (el.type === 'text') {
       document.getElementById('textProps').classList.remove('hidden');
       document.getElementById('propFontFamily').value = el.fontFamily||'DM Sans';
@@ -112,6 +125,7 @@ function showMultiSelectPanel() {
 }
 
 function deselectAll() {
+  if (isCropping) exitCropMode();
   if (isEditing) finishEditing();
   selectedId = null;
   selectedIds.clear();
@@ -538,6 +552,10 @@ function addClipImage(id) {
       if (!el) return;
       saveState();
       el.clipImage = ev.target.result;
+      el.imgOffsetX = 0; el.imgOffsetY = 0; el.imgZoom = 1;
+      const ti = new Image();
+      ti.onload = () => { el._natW = ti.naturalWidth; el._natH = ti.naturalHeight; render(); };
+      ti.src = ev.target.result;
       render();
       showToast('Image added to shape');
     };
@@ -690,16 +708,17 @@ function buildTemplateCard(tpl) {
     const pw = Math.max(1, Math.round(el.w * sx));
     const ph = Math.max(1, Math.round(el.h * sy));
     const opacity = (el.opacity != null ? el.opacity / 100 : 1) * 0.85;
+    const rot = el.rotation ? `transform:rotate(${el.rotation}deg);` : '';
     if (el.type === 'text') {
       const lineH = Math.max(1, Math.round(el.fontSize * sy * 0.5));
       const color = el.textColor || '#333';
-      previewEls += `<div style="position:absolute;left:${px}px;top:${py}px;width:${pw}px;height:${lineH}px;background:${color};border-radius:1px;opacity:${opacity * 0.7}"></div>`;
+      previewEls += `<div style="position:absolute;left:${px}px;top:${py}px;width:${pw}px;height:${lineH}px;background:${color};border-radius:1px;opacity:${opacity * 0.7};${rot}"></div>`;
     } else {
       const color = el.fill || '#ddd';
       if (color === 'transparent' && !el.borderWidth) return;
       const br = el.borderRadius ? (el.borderRadius >= 9999 ? '50%' : Math.round(el.borderRadius * sx) + 'px') : '0';
       const border = el.borderWidth ? `${Math.max(1, Math.round(el.borderWidth * sx))}px solid ${el.borderColor || '#000'}` : 'none';
-      previewEls += `<div style="position:absolute;left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;background:${color === 'transparent' ? 'transparent' : color};border:${border};border-radius:${br};opacity:${opacity}"></div>`;
+      previewEls += `<div style="position:absolute;left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;background:${color === 'transparent' ? 'transparent' : color};border:${border};border-radius:${br};opacity:${opacity};${rot}"></div>`;
     }
   });
 

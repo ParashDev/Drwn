@@ -112,6 +112,31 @@ canvasArea.addEventListener('mousedown', (e) => {
     return;
   }
 
+  // Crop mode: drag on crop target to pan, click elsewhere to exit
+  if (isCropping && cropTargetId) {
+    const cropElDiv = canvas.querySelector(`[data-id="${cropTargetId}"]`);
+    let isOnTarget = false;
+    if (cropElDiv) {
+      const rect = cropElDiv.getBoundingClientRect();
+      isOnTarget = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    }
+    if (isOnTarget) {
+      const el = elements.find(e => e.id === cropTargetId);
+      if (el) {
+        isCropDragging = true;
+        cropStartX = e.clientX; cropStartY = e.clientY;
+        cropStartOffX = el.imgOffsetX || 0; cropStartOffY = el.imgOffsetY || 0;
+        canvasArea.style.cursor = 'grabbing';
+        e.preventDefault(); return;
+      }
+    }
+    // Clicked outside the crop target — exit crop mode
+    exitCropMode();
+    const clickedEl = target.closest('.canvas-element');
+    if (!clickedEl) return;
+    // Fall through for normal element handling if clicked another element
+  }
+
   const elDiv = target.closest('.canvas-element');
   if (elDiv) {
     const id = elDiv.dataset.id;
@@ -195,6 +220,22 @@ canvasArea.addEventListener('mousedown', (e) => {
 canvasArea.addEventListener('mousemove', (e) => {
   if (isMobile()) return;
   if (isPanning) { panX = panStartPX + (e.clientX - panStartX); panY = panStartPY + (e.clientY - panStartY); updateCanvasTransform(); return; }
+  // Crop mode pan
+  if (isCropDragging && cropTargetId) {
+    const el = elements.find(e => e.id === cropTargetId);
+    if (el) {
+      const rot = (el.rotation || 0) * Math.PI / 180;
+      const rawDx = (e.clientX - cropStartX) / zoom, rawDy = (e.clientY - cropStartY) / zoom;
+      const cos = Math.cos(-rot), sin = Math.sin(-rot);
+      const dx = rawDx * cos - rawDy * sin, dy = rawDx * sin + rawDy * cos;
+      el.imgOffsetX = cropStartOffX + dx;
+      el.imgOffsetY = cropStartOffY + dy;
+      clampImageOffset(el);
+      updateImagePositionPanel(el);
+      render();
+    }
+    return;
+  }
   if (isRotating && selectedId) {
     const el = elements.find(e => e.id === selectedId); if (!el) return;
     const elDiv = canvas.querySelector(`[data-id="${selectedId}"]`); const rect = elDiv.getBoundingClientRect();
@@ -244,8 +285,11 @@ canvasArea.addEventListener('mousemove', (e) => {
     if(h.includes('l')) { nW = Math.max(20, resizeStartW-dx); nX = resizeStartEX+(resizeStartW-nW); }
     if(h.includes('b')) nH = Math.max(20, resizeStartH+dy);
     if(h.includes('t')) { nH = Math.max(20, resizeStartH-dy); nY = resizeStartEY+(resizeStartH-nH); }
-    // Text corner handles: always lock aspect ratio for clean font scaling
-    if (el.type === 'text' && 'tl tr bl br'.includes(h)) {
+    // Lock aspect ratio on corner handles for: text, images, clip images, SVG shapes, circles
+    const isSvg = SVG_SHAPE_TYPES.includes(el.type) || !!EXTRA_SHAPES[el.type];
+    const isCircle = el.type === 'rect' && (el.borderRadius >= 9999 || el.name === 'Circle');
+    const lockRatio = (el.type === 'text' || el.type === 'image' || el.clipImage || isSvg || isCircle) && 'tl tr bl br'.includes(h);
+    if (lockRatio) {
       const ratio = resizeStartW/resizeStartH;
       if(Math.abs(dx)>Math.abs(dy)) { nH=nW/ratio; if(h.includes('t'))nY=resizeStartEY+resizeStartH-nH; }
       else { nW=nH*ratio; if(h.includes('l'))nX=resizeStartEX+resizeStartW-nW; }
@@ -255,6 +299,7 @@ canvasArea.addEventListener('mousemove', (e) => {
       else { nW=nH*ratio; if(h.includes('l'))nX=resizeStartEX+resizeStartW-nW; }
     }
     el.w=Math.round(nW); el.h=Math.round(nH); el.x=Math.round(nX); el.y=Math.round(nY);
+    if (el.type === 'image' || el.clipImage) clampImageOffset(el);
     // Corner handles on text: scale font proportionally
     if (el.type === 'text' && resizeStartFontSize && 'tl tr bl br'.includes(h)) {
       el.fontSize = Math.max(8, Math.round(resizeStartFontSize * (nH / resizeStartH)));
@@ -360,6 +405,7 @@ canvasArea.addEventListener('mouseup', () => {
     bboxOriginals = [];
     bboxOrigRect = null;
   }
+  if (isCropDragging) { isCropDragging = false; canvasArea.style.cursor = isCropping ? 'grab' : 'default'; }
   isDragging=false; isResizing=false; isRotating=false;
   multiDragOffsets = [];
   // Clear snap highlights
@@ -367,14 +413,16 @@ canvasArea.addEventListener('mouseup', () => {
   if(isPanning) { isPanning=false; canvasArea.style.cursor=currentTool==='hand'?'grab':'default'; }
 });
 
-// Double-click: edit text, add clip image, or center canvas
+// Double-click: edit text, crop image, add clip image, or center canvas
 canvasArea.addEventListener('dblclick', (e) => {
   const elDiv = e.target.closest('.canvas-element');
   if (elDiv) {
     const el = elements.find(e => e.id === elDiv.dataset.id);
     if (!el) return;
     if (el.type === 'text') { startEditing(elDiv, el); return; }
-    if (el.type !== 'image' && el.type !== 'line') { addClipImage(el.id); }
+    if (el.type === 'image') { enterCropMode(el.id); return; }
+    if (el.clipImage) { enterCropMode(el.id); return; }
+    if (el.type !== 'line') { addClipImage(el.id); }
     return;
   }
   // Double-click outside canvas → center & fit
@@ -383,26 +431,73 @@ canvasArea.addEventListener('dblclick', (e) => {
   }
 });
 
+// Read text from contentEditable preserving line breaks from <div> and <br> markup
+function readEditableText(node) {
+  let html = node.innerHTML;
+  html = html.replace(/<div><br\s*\/?><\/div>/gi, '\n');
+  html = html.replace(/<\/div>\s*<div>/gi, '\n');
+  html = html.replace(/<div>/gi, '\n');
+  html = html.replace(/<\/div>/gi, '');
+  html = html.replace(/<br\s*\/?>/gi, '\n');
+  html = html.replace(/<[^>]+>/g, '');
+  const tmp = document.createElement('textarea');
+  tmp.innerHTML = html;
+  return tmp.value.replace(/^\n/, '');
+}
+
+function autoResizeTextElement(el) {
+  // Measure how tall the text actually needs to be
+  const m = document.createElement('div');
+  Object.assign(m.style, {
+    position: 'absolute', visibility: 'hidden', left: '-9999px',
+    width: el.w + 'px', padding: '4px 8px', boxSizing: 'border-box',
+    fontFamily: `'${el.fontFamily || 'DM Sans'}', sans-serif`,
+    fontSize: (el.fontSize || 24) + 'px', fontWeight: el.fontWeight || '700',
+    lineHeight: el.lineHeight || 1.4, letterSpacing: (el.letterSpacing || 0) + 'px',
+    whiteSpace: 'pre-wrap', wordWrap: 'break-word',
+  });
+  if (el.bold) m.style.fontWeight = '700';
+  if (el.italic) m.style.fontStyle = 'italic';
+  m.innerText = el.text || '';
+  document.body.appendChild(m);
+  const needed = m.scrollHeight;
+  document.body.removeChild(m);
+  if (needed > el.h) {
+    el.h = Math.ceil(needed);
+    const hInput = document.getElementById('propH');
+    if (hInput) hInput.value = el.h;
+  }
+}
+
 function startEditing(div, el) {
   isEditing=true; isDragging=false;
   // Target the inner text wrapper if it exists (text elements use a child div to avoid clipping handles)
   const editTarget = div.querySelector('div') || div;
   editTarget.style.pointerEvents = 'auto';
+  editTarget.style.overflow = 'auto'; // allow scrolling while editing
   editTarget.contentEditable=true; editTarget.style.cursor='text'; editTarget.focus();
   const range = document.createRange(); range.selectNodeContents(editTarget);
   const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-  editTarget.addEventListener('blur', () => { isEditing=false; el.text=editTarget.innerText; editTarget.contentEditable=false; render(); }, {once:true});
-  editTarget.addEventListener('input', () => { el.text = editTarget.innerText; });
+  editTarget.addEventListener('blur', () => {
+    isEditing=false;
+    el.text = readEditableText(editTarget);
+    editTarget.contentEditable=false;
+    autoResizeTextElement(el);
+    render();
+  }, {once:true});
+  editTarget.addEventListener('input', () => { el.text = readEditableText(editTarget); });
 }
 function finishEditing() {
   isEditing=false;
   const editable = canvas.querySelector('[contenteditable="true"]');
   if(editable) {
-    editable.contentEditable=false;
-    // The editable might be the inner div; find the parent .canvas-element for the data-id
     const elDiv = editable.closest('.canvas-element') || editable;
     const el=elements.find(e=>e.id===elDiv.dataset.id);
-    if(el) el.text=editable.innerText;
+    if(el) {
+      el.text = readEditableText(editable);
+      autoResizeTextElement(el);
+    }
+    editable.contentEditable=false;
   }
 }
 
@@ -556,7 +651,7 @@ document.addEventListener('keydown', (e) => {
     if (selectedIds.size > 1) { deleteSelected(); e.preventDefault(); }
     else if(selectedId) { deleteElement(selectedId); e.preventDefault(); }
   }
-  if(e.key==='Escape') { deselectAll(); closePresetModal(); closeSaveModal(); closeLoadModal(); }
+  if(e.key==='Escape') { if(isCropping){exitCropMode();}else{deselectAll();} closePresetModal(); closeSaveModal(); closeLoadModal(); }
   if((e.ctrlKey||e.metaKey)&&e.key==='s') { e.preventDefault(); openSaveModal(); }
   if((e.ctrlKey||e.metaKey)&&e.key==='z') { e.preventDefault(); undo(); }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))) { e.preventDefault(); redo(); }
@@ -893,11 +988,13 @@ function drawImage(ctx, el, img) {
     ctx.moveTo(r, 0); ctx.arcTo(el.w, 0, el.w, el.h, r); ctx.arcTo(el.w, el.h, 0, el.h, r);
     ctx.arcTo(0, el.h, 0, 0, r); ctx.arcTo(0, 0, el.w, 0, r); ctx.closePath(); ctx.clip();
   }
-  // Object-fit: cover
+  // Object-fit: cover with zoom/offset
   const iw = img.naturalWidth, ih = img.naturalHeight;
-  const scale = Math.max(el.w / iw, el.h / ih);
+  const z = el.imgZoom || 1;
+  const baseScale = Math.max(el.w / iw, el.h / ih);
+  const scale = baseScale * z;
   const sw = iw * scale, sh = ih * scale;
-  const ox = (el.w - sw) / 2, oy = (el.h - sh) / 2;
+  const ox = (el.w - sw) / 2 + (el.imgOffsetX || 0), oy = (el.h - sh) / 2 + (el.imgOffsetY || 0);
   // Filters
   const filters = getFilterCSS(el);
   if (filters) ctx.filter = filters;
@@ -941,11 +1038,84 @@ function drawClippedImage(ctx, el, img) {
     ctx.beginPath(); ctx.moveTo(r,0); ctx.arcTo(el.w,0,el.w,el.h,r); ctx.arcTo(el.w,el.h,0,el.h,r);
     ctx.arcTo(0,el.h,0,0,r); ctx.arcTo(0,0,el.w,0,r); ctx.closePath(); ctx.clip();
   }
-  // Draw image cover
+  // Draw image cover with zoom/offset
   const iw = img.naturalWidth, ih = img.naturalHeight;
-  const s = Math.max(el.w / iw, el.h / ih);
+  const z = el.imgZoom || 1;
+  const s = Math.max(el.w / iw, el.h / ih) * z;
   const sw = iw * s, sh = ih * s;
-  ctx.drawImage(img, (el.w - sw) / 2, (el.h - sh) / 2, sw, sh);
+  ctx.drawImage(img, (el.w - sw) / 2 + (el.imgOffsetX || 0), (el.h - sh) / 2 + (el.imgOffsetY || 0), sw, sh);
+}
+
+// ═══════════════════════════════════════════════════════════
+// IMAGE CROP / PAN MODE
+// ═══════════════════════════════════════════════════════════
+function enterCropMode(id) {
+  const el = elements.find(e => e.id === id);
+  if (!el) return;
+  if (el.type !== 'image' && !el.clipImage) return;
+  isCropping = true; cropTargetId = id;
+  canvasArea.style.cursor = 'grab';
+  selectElement(id);
+  if (typeof updateMobileContextBar === 'function') updateMobileContextBar();
+  showToast('Drag to reposition \u2022 Tap outside or Esc to exit');
+}
+
+function exitCropMode() {
+  isCropping = false; isCropDragging = false; cropTargetId = null;
+  canvasArea.style.cursor = 'default';
+  render();
+  if (typeof updateMobileContextBar === 'function') updateMobileContextBar();
+}
+
+function clampImageOffset(el) {
+  if (!el._natW) return; // can't clamp without natural dims
+  const z = el.imgZoom || 1;
+  const bs = Math.max(el.w / el._natW, el.h / el._natH);
+  const s = bs * z;
+  const sw = el._natW * s, sh = el._natH * s;
+  const maxX = Math.max(0, (sw - el.w) / 2);
+  const maxY = Math.max(0, (sh - el.h) / 2);
+  el.imgOffsetX = Math.max(-maxX, Math.min(maxX, el.imgOffsetX || 0));
+  el.imgOffsetY = Math.max(-maxY, Math.min(maxY, el.imgOffsetY || 0));
+}
+
+function updateImagePositionPanel(el) {
+  const zoomSlider = document.getElementById('propImgZoom');
+  if (!zoomSlider) return;
+  zoomSlider.value = Math.round((el.imgZoom || 1) * 100);
+  document.getElementById('propImgZoomVal').textContent = Math.round((el.imgZoom || 1) * 100) + '%';
+  document.getElementById('propImgOffsetX').value = Math.round(el.imgOffsetX || 0);
+  document.getElementById('propImgOffsetY').value = Math.round(el.imgOffsetY || 0);
+}
+
+function updateImageZoom(val) {
+  const el = elements.find(e => e.id === selectedId); if (!el) return;
+  saveState();
+  el.imgZoom = parseFloat(val) / 100;
+  document.getElementById('propImgZoomVal').textContent = Math.round(el.imgZoom * 100) + '%';
+  clampImageOffset(el);
+  document.getElementById('propImgOffsetX').value = Math.round(el.imgOffsetX || 0);
+  document.getElementById('propImgOffsetY').value = Math.round(el.imgOffsetY || 0);
+  render();
+}
+
+function updateImageOffset() {
+  const el = elements.find(e => e.id === selectedId); if (!el) return;
+  saveState();
+  el.imgOffsetX = parseFloat(document.getElementById('propImgOffsetX').value) || 0;
+  el.imgOffsetY = parseFloat(document.getElementById('propImgOffsetY').value) || 0;
+  clampImageOffset(el);
+  document.getElementById('propImgOffsetX').value = Math.round(el.imgOffsetX || 0);
+  document.getElementById('propImgOffsetY').value = Math.round(el.imgOffsetY || 0);
+  render();
+}
+
+function resetImagePosition() {
+  const el = elements.find(e => e.id === selectedId); if (!el) return;
+  saveState();
+  el.imgOffsetX = 0; el.imgOffsetY = 0; el.imgZoom = 1;
+  updateImagePositionPanel(el);
+  render();
 }
 
 function showToast(msg) {

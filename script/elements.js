@@ -16,6 +16,7 @@ function baseProps(overrides = {}) {
     filterBlur: 0, filterHueRotate: 0, filterGrayscale: 0, filterSepia: 0,
     filterWarmth: 0, filterVignette: 0,
     clipImage: null,
+    imgOffsetX: 0, imgOffsetY: 0, imgZoom: 1,
     ...overrides
   };
 }
@@ -39,6 +40,16 @@ function getClipPath(el) {
   const shapeType = el.shapeType || el.type;
   if (shapeType === 'circle' || (el.type === 'rect' && el.name === 'Circle')) return CLIP_PATHS.circle;
   if (CLIP_PATHS[shapeType]) return CLIP_PATHS[shapeType];
+  // Generate clip path from EXTRA_SHAPES poly/path data
+  const extra = EXTRA_SHAPES[shapeType];
+  if (extra) {
+    if (extra.poly) {
+      return 'polygon(' + extra.poly.map(p => p[0] + '% ' + p[1] + '%').join(', ') + ')';
+    }
+    if (extra.path) {
+      return `url(#clip-${shapeType})`;
+    }
+  }
   return null;
 }
 
@@ -127,7 +138,13 @@ function renderSVGShape(el) {
 // ═══════════════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════════════
+let _rendering = false;
 function render() {
+  if (_rendering) return;
+  _rendering = true;
+  // Detach any active contentEditable to prevent blur-triggered re-render
+  const editable = canvas.querySelector('[contenteditable="true"]');
+  if (editable) { editable.removeAttribute('contenteditable'); }
   canvas.querySelectorAll('.canvas-element').forEach(e => e.remove());
   canvas.querySelectorAll('.multi-select-bbox').forEach(e => e.remove());
   canvas.querySelectorAll('.bbox-handle').forEach(e => e.remove());
@@ -139,7 +156,7 @@ function render() {
     if (!el.visible) return;
     const div = document.createElement('div');
     const isSelected = selectedIds.has(el.id);
-    div.className = 'canvas-element' + (isSingle && isSelected ? ' selected' : '') + (isMulti && isSelected ? ' multi-selected' : '');
+    div.className = 'canvas-element' + (isSingle && isSelected ? ' selected' : '') + (isMulti && isSelected ? ' multi-selected' : '') + (isCropping && isSelected ? ' cropping' : '');
     div.dataset.id = el.id;
     let transformStr = `rotate(${el.rotation||0}deg)`;
     if (el.flipH) transformStr += ' scaleX(-1)';
@@ -164,11 +181,22 @@ function render() {
         overflow: 'hidden',
       });
       const img = document.createElement('img');
-      img.src = el.clipImage;
       img.draggable = false;
-      Object.assign(img.style, {
-        width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none',
-      });
+      Object.assign(img.style, { position:'absolute', display:'block', pointerEvents:'none' });
+      const applyClipSize = (nw, nh) => {
+        const z = el.imgZoom || 1;
+        const bs = Math.max(el.w / nw, el.h / nh);
+        const s = bs * z, sw = nw * s, sh = nh * s;
+        img.style.width = sw + 'px'; img.style.height = sh + 'px';
+        img.style.left = ((el.w - sw) / 2 + (el.imgOffsetX || 0)) + 'px';
+        img.style.top = ((el.h - sh) / 2 + (el.imgOffsetY || 0)) + 'px';
+      };
+      img.onload = function() {
+        el._natW = img.naturalWidth; el._natH = img.naturalHeight;
+        applyClipSize(el._natW, el._natH);
+      };
+      img.src = el.clipImage;
+      if (el._natW) applyClipSize(el._natW, el._natH);
       clipDiv.appendChild(img);
       const cp = getClipPath(el);
       if (cp) clipDiv.style.clipPath = cp;
@@ -181,7 +209,7 @@ function render() {
       const textInner = document.createElement('div');
       Object.assign(textInner.style, {
         width: '100%', height: '100%', overflow: 'hidden', wordWrap: 'break-word',
-        padding: '4px 8px', pointerEvents: 'none'
+        whiteSpace: 'pre-wrap', padding: '4px 8px', pointerEvents: 'none'
       });
       Object.assign(div.style, { backgroundColor: el.fill==='transparent'?'transparent':el.fill, color: el.textColor||'#000',
         fontFamily: `'${el.fontFamily||'DM Sans'}', sans-serif`, fontSize: (el.fontSize||24)+'px', fontWeight: el.fontWeight||'700',
@@ -205,11 +233,26 @@ function render() {
       }
       div.appendChild(renderSVGShape(el));
     } else if (el.type === 'image') {
-      const img = document.createElement('img'); img.src = el.src;
+      const img = document.createElement('img');
+      img.draggable = false; div.style.overflow = 'hidden';
       const filterStr = getFilterCSS(el);
-      Object.assign(img.style, { width:'100%', height:'100%', objectFit:'cover', borderRadius:(el.borderRadius||0)+'px' });
+      Object.assign(img.style, { position:'absolute', pointerEvents:'none', borderRadius:(el.borderRadius||0)+'px' });
       if (filterStr) img.style.filter = filterStr;
-      img.draggable = false; div.style.overflow = 'hidden'; div.appendChild(img);
+      const applyImgSize = (nw, nh) => {
+        const z = el.imgZoom || 1;
+        const bs = Math.max(el.w / nw, el.h / nh);
+        const s = bs * z, sw = nw * s, sh = nh * s;
+        img.style.width = sw + 'px'; img.style.height = sh + 'px';
+        img.style.left = ((el.w - sw) / 2 + (el.imgOffsetX || 0)) + 'px';
+        img.style.top = ((el.h - sh) / 2 + (el.imgOffsetY || 0)) + 'px';
+      };
+      img.onload = function() {
+        el._natW = img.naturalWidth; el._natH = img.naturalHeight;
+        applyImgSize(el._natW, el._natH);
+      };
+      img.src = el.src;
+      if (el._natW) applyImgSize(el._natW, el._natH);
+      div.appendChild(img);
       if (el.filterVignette > 0) {
         const vig = document.createElement('div');
         Object.assign(vig.style, { position:'absolute', inset:'0', borderRadius:(el.borderRadius||0)+'px',
@@ -218,7 +261,7 @@ function render() {
         div.appendChild(vig);
       }
     }
-    if (isSingle && isSelected) {
+    if (isSingle && isSelected && !isCropping) {
       // Cursor angles for each handle at 0° rotation (degrees from east, going clockwise)
       const handleAngles = { tm: 0, tr: 45, mr: 90, br: 135, bm: 180, bl: 225, ml: 270, tl: 315 };
       const cursorNames = ['n-resize','ne-resize','e-resize','se-resize','s-resize','sw-resize','w-resize','nw-resize'];
@@ -292,6 +335,7 @@ function render() {
   updateLayersList();
   updateZOrderLabel();
   updateContextToolbar();
+  _rendering = false;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -522,7 +566,8 @@ function handleImageUpload(e) {
       w = Math.round(w); h = Math.round(h);
       const pos = centeredPos(w, h);
       elements.push({ id: createId(), type: 'image', x: pos.x, y: pos.y, w, h,
-        src: ev.target.result, fill: 'transparent', name: 'Image', ...baseProps() });
+        src: ev.target.result, fill: 'transparent', name: 'Image',
+        _natW: img.naturalWidth, _natH: img.naturalHeight, ...baseProps() });
       selectElement(elements[elements.length-1].id); render();
     };
     img.src = ev.target.result;

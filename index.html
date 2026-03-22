@@ -696,6 +696,35 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- Image position props (shown for image elements and shapes with clip images) -->
+    <div id="imagePositionProps" class="hidden">
+      <div class="panel-section p-3">
+        <h3 class="text-[10px] font-semibold text-fg-400 uppercase tracking-widest mb-2">Image Position</h3>
+        <div class="mb-2">
+          <label class="text-[10px] text-fg-400 block mb-1">Zoom</label>
+          <div class="flex gap-2 items-center">
+            <input type="range" id="propImgZoom" min="100" max="300" value="100" class="flex-1" oninput="updateImageZoom(this.value)" />
+            <span id="propImgZoomVal" class="text-[10px] text-fg-300 font-mono w-8">100%</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <div>
+            <label class="text-[10px] text-fg-400 block mb-0.5">Offset X</label>
+            <input type="number" id="propImgOffsetX" value="0" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateImageOffset()" />
+          </div>
+          <div>
+            <label class="text-[10px] text-fg-400 block mb-0.5">Offset Y</label>
+            <input type="number" id="propImgOffsetY" value="0" class="w-full bg-fg-700 border border-fg-600 rounded px-2 py-1 text-xs text-fg-100 outline-none focus:border-fg-accent" onchange="updateImageOffset()" />
+          </div>
+        </div>
+        <div class="flex gap-1.5">
+          <button onclick="resetImagePosition()" class="flex-1 bg-fg-700 border border-fg-600 hover:border-fg-accent rounded-lg py-1.5 text-xs text-fg-200 transition-all">Reset</button>
+          <button onclick="enterCropMode(selectedId)" class="flex-1 bg-fg-accent hover:bg-fg-accentHover text-white rounded-lg py-1.5 text-xs font-medium transition-all">Crop / Pan</button>
+        </div>
+        <p class="text-[9px] text-fg-400 mt-1.5">Double-click image to enter pan mode</p>
+      </div>
+    </div>
+
     <!-- Text props -->
     <div id="textProps" class="hidden">
       <div class="panel-section p-3">

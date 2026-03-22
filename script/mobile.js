@@ -236,6 +236,18 @@ function handlePointerDown(e) {
   const target = document.elementFromPoint(e.clientX, e.clientY);
   if (!target) return;
 
+  // Crop mode: start dragging to pan image
+  if (isCropping && cropTargetId) {
+    const el = elements.find(el => el.id === cropTargetId);
+    if (el) {
+      isCropDragging = true;
+      cropStartX = e.clientX; cropStartY = e.clientY;
+      cropStartOffX = el.imgOffsetX || 0; cropStartOffY = el.imgOffsetY || 0;
+      mobileDragStarted = true;
+      return;
+    }
+  }
+
   // Handle rotate (fallback for elementFromPoint)
   if (target.dataset && target.dataset.rotate) {
     const el = elements.find(el => el.id === selectedId);
@@ -354,6 +366,21 @@ function handlePointerMove(e) {
     mobileDragStarted = true;
   }
 
+  // Crop mode drag on mobile
+  if (isCropDragging && cropTargetId) {
+    const el = elements.find(el => el.id === cropTargetId);
+    if (el) {
+      const rot = (el.rotation || 0) * Math.PI / 180;
+      const rawDx = (e.clientX - cropStartX) / zoom, rawDy = (e.clientY - cropStartY) / zoom;
+      const cos = Math.cos(-rot), sin = Math.sin(-rot);
+      el.imgOffsetX = cropStartOffX + (rawDx * cos - rawDy * sin);
+      el.imgOffsetY = cropStartOffY + (rawDx * sin + rawDy * cos);
+      clampImageOffset(el);
+      render();
+    }
+    return;
+  }
+
   // Rotation
   if (isRotating && selectedId) {
     const el = elements.find(el => el.id === selectedId);
@@ -384,8 +411,11 @@ function handlePointerMove(e) {
     if (h.includes('l')) { nW = Math.max(20, resizeStartW - dx); nX = resizeStartEX + (resizeStartW - nW); }
     if (h.includes('b')) nH = Math.max(20, resizeStartH + dy);
     if (h.includes('t')) { nH = Math.max(20, resizeStartH - dy); nY = resizeStartEY + (resizeStartH - nH); }
-    // Text corner handles: lock aspect ratio
-    if (el.type === 'text' && 'tl tr bl br'.includes(h)) {
+    // Lock aspect ratio on corner handles for: text, images, clip images, SVG shapes, circles
+    const isSvg = SVG_SHAPE_TYPES.includes(el.type) || !!EXTRA_SHAPES[el.type];
+    const isCircle = el.type === 'rect' && (el.borderRadius >= 9999 || el.name === 'Circle');
+    const lockRatio = (el.type === 'text' || el.type === 'image' || el.clipImage || isSvg || isCircle) && 'tl tr bl br'.includes(h);
+    if (lockRatio) {
       const ratio = resizeStartW/resizeStartH;
       if(Math.abs(dx)>Math.abs(dy)) { nH=nW/ratio; if(h.includes('t'))nY=resizeStartEY+resizeStartH-nH; }
       else { nW=nH*ratio; if(h.includes('l'))nX=resizeStartEX+resizeStartW-nW; }
@@ -531,7 +561,11 @@ function handlePointerUp(e) {
 
   // If it was a quick tap (not drag, not long press)
   if (!mobileDragStarted && elapsed < 300 && !isRotating && !isResizing) {
-    if (!mobileTouchOnElement) {
+    // Tap outside element while in crop mode → exit crop mode
+    if (isCropping && !mobileTouchOnElement) {
+      exitCropMode();
+      updateMobileContextBar();
+    } else if (!mobileTouchOnElement) {
       deselectAll();
       updateMobileContextBar();
     }
@@ -542,6 +576,7 @@ function handlePointerUp(e) {
     bboxOriginals = [];
     bboxOrigRect = null;
   }
+  isCropDragging = false;
   isDragging = false;
   isResizing = false;
   isRotating = false;
@@ -564,7 +599,11 @@ canvasArea.addEventListener('pointerup', (e) => {
       if (el) {
         if (el.type === 'text') {
           startEditing(elDiv, el);
-        } else if (el.type !== 'image' && el.type !== 'line') {
+        } else if (el.type === 'image') {
+          enterCropMode(el.id);
+        } else if (el.clipImage) {
+          enterCropMode(el.id);
+        } else if (el.type !== 'line') {
           addClipImage(el.id);
         }
       }
@@ -1156,6 +1195,18 @@ function updateMobileContextBar() {
   const ab = (active) => active ? 'background:rgba(108,92,231,0.2);color:#6c5ce7;border-color:#6c5ce7;' : '';
   const eid = el.id;
 
+  // Crop mode: show crop-specific controls
+  if (isCropping && cropTargetId === el.id) {
+    actions.innerHTML = `<button class="mobile-ctx-btn" style="background:#6c5ce7;color:#fff;font-weight:600;" onclick="exitCropMode();updateMobileContextBar();">Done</button>`;
+    const z = Math.round((el.imgZoom || 1) * 100);
+    content.innerHTML = `
+      <span style="font-size:10px;color:#999;white-space:nowrap;">Zoom ${z}%</span>
+      <input type="range" min="100" max="300" value="${z}" style="width:120px;flex-shrink:0;" oninput="updateImageZoom(this.value);updateMobileContextBar();" />
+      <div class="mobile-ctx-divider"></div>
+      <button class="mobile-ctx-btn" onclick="resetImagePosition();updateMobileContextBar();">Reset</button>`;
+    return;
+  }
+
   // Pinned actions — always visible on the right
   actions.innerHTML = `
     <button class="mobile-ctx-btn" onclick="duplicateElement('${eid}')">${dupIcon}</button>
@@ -1176,12 +1227,20 @@ function updateMobileContextBar() {
       <button class="mobile-ctx-btn" style="${ab(el.textAlign==='right')}padding:0 8px;" onclick="mobileCtxUpdate('textAlign','right')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>`;
   } else if (el.type === 'image') {
     content.innerHTML = `
+      <button class="mobile-ctx-btn" onclick="enterCropMode('${eid}');updateMobileContextBar();">Crop</button>
       <button class="mobile-ctx-btn" onclick="openImageEdit()">Edit</button>
       <div class="mobile-ctx-divider"></div>
       <button class="mobile-ctx-btn" onclick="flipH()">Flip H</button>
       <button class="mobile-ctx-btn" onclick="flipV()">Flip V</button>`;
   } else {
+    const imgBtns = el.clipImage
+      ? `<button class="mobile-ctx-btn" onclick="enterCropMode('${eid}');updateMobileContextBar();">Crop</button>
+         <button class="mobile-ctx-btn" onclick="addClipImage('${eid}')">Replace</button>
+         <button class="mobile-ctx-btn" onclick="removeClipImage('${eid}');render();updateMobileContextBar();">Remove</button>
+         <div class="mobile-ctx-divider"></div>`
+      : (el.type !== 'line' ? `<button class="mobile-ctx-btn" onclick="addClipImage('${eid}')">Add Image</button><div class="mobile-ctx-divider"></div>` : '');
     content.innerHTML = `
+      ${imgBtns}
       <input type="color" value="${el.fill === 'transparent' ? '#ffffff' : el.fill}" oninput="mobileCtxUpdate('fill',this.value)" style="width:32px;height:32px;border-radius:6px;border:none;cursor:pointer;flex-shrink:0;" />
       <div class="mobile-ctx-divider"></div>
       <button class="mobile-ctx-btn" onclick="zMoveUp()" title="Forward"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>

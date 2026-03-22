@@ -42,6 +42,13 @@ let mobileTouchOnElement = false;
 let mobileTextFontCategory = 'All';
 let lastTapTime = 0;
 
+// Crop/pan mode for image repositioning inside containers
+let isCropping = false;
+let isCropDragging = false;
+let cropTargetId = null;
+let cropStartX = 0, cropStartY = 0;
+let cropStartOffX = 0, cropStartOffY = 0;
+
 // ═══════════════════════════════════════════════════════════
 // DOM REFERENCES
 // ═══════════════════════════════════════════════════════════
