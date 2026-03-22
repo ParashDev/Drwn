@@ -180,23 +180,19 @@ function render() {
         width: '100%', height: '100%', position: 'absolute', top: '0', left: '0',
         overflow: 'hidden',
       });
-      const img = document.createElement('img');
+      const img = document.createElement('img'); img.src = el.clipImage;
       img.draggable = false;
-      Object.assign(img.style, { position:'absolute', display:'block', pointerEvents:'none' });
-      const applyClipSize = (nw, nh) => {
-        const z = el.imgZoom || 1;
-        const bs = Math.max(el.w / nw, el.h / nh);
-        const s = bs * z, sw = nw * s, sh = nh * s;
-        img.style.width = sw + 'px'; img.style.height = sh + 'px';
-        img.style.left = ((el.w - sw) / 2 + (el.imgOffsetX || 0)) + 'px';
-        img.style.top = ((el.h - sh) / 2 + (el.imgOffsetY || 0)) + 'px';
-      };
-      img.onload = function() {
-        el._natW = img.naturalWidth; el._natH = img.naturalHeight;
-        applyClipSize(el._natW, el._natH);
-      };
-      img.src = el.clipImage;
-      if (el._natW) applyClipSize(el._natW, el._natH);
+      const z = el.imgZoom || 1;
+      const px = (el.imgOffsetX || 0) / z, py = (el.imgOffsetY || 0) / z;
+      Object.assign(img.style, {
+        position: 'absolute', left: '0', top: '0',
+        width: '100%', height: '100%', objectFit: 'cover',
+        objectPosition: `calc(50% + ${px}px) calc(50% + ${py}px)`,
+        transformOrigin: 'center center',
+        transform: z !== 1 ? `scale(${z})` : '',
+        display: 'block', pointerEvents: 'none',
+      });
+      img.onload = function() { if (!el._natW) { el._natW = img.naturalWidth; el._natH = img.naturalHeight; } };
       clipDiv.appendChild(img);
       const cp = getClipPath(el);
       if (cp) clipDiv.style.clipPath = cp;
@@ -233,25 +229,21 @@ function render() {
       }
       div.appendChild(renderSVGShape(el));
     } else if (el.type === 'image') {
-      const img = document.createElement('img');
+      const img = document.createElement('img'); img.src = el.src;
       img.draggable = false; div.style.overflow = 'hidden';
       const filterStr = getFilterCSS(el);
-      Object.assign(img.style, { position:'absolute', pointerEvents:'none', borderRadius:(el.borderRadius||0)+'px' });
+      const z = el.imgZoom || 1;
+      const px = (el.imgOffsetX || 0) / z, py = (el.imgOffsetY || 0) / z;
+      Object.assign(img.style, {
+        position: 'absolute', left: '0', top: '0',
+        width: '100%', height: '100%', objectFit: 'cover',
+        objectPosition: `calc(50% + ${px}px) calc(50% + ${py}px)`,
+        transformOrigin: 'center center',
+        transform: z !== 1 ? `scale(${z})` : '',
+        pointerEvents: 'none', borderRadius: (el.borderRadius || 0) + 'px',
+      });
       if (filterStr) img.style.filter = filterStr;
-      const applyImgSize = (nw, nh) => {
-        const z = el.imgZoom || 1;
-        const bs = Math.max(el.w / nw, el.h / nh);
-        const s = bs * z, sw = nw * s, sh = nh * s;
-        img.style.width = sw + 'px'; img.style.height = sh + 'px';
-        img.style.left = ((el.w - sw) / 2 + (el.imgOffsetX || 0)) + 'px';
-        img.style.top = ((el.h - sh) / 2 + (el.imgOffsetY || 0)) + 'px';
-      };
-      img.onload = function() {
-        el._natW = img.naturalWidth; el._natH = img.naturalHeight;
-        applyImgSize(el._natW, el._natH);
-      };
-      img.src = el.src;
-      if (el._natW) applyImgSize(el._natW, el._natH);
+      img.onload = function() { if (!el._natW) { el._natW = img.naturalWidth; el._natH = img.naturalHeight; } };
       div.appendChild(img);
       if (el.filterVignette > 0) {
         const vig = document.createElement('div');

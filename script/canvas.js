@@ -1068,13 +1068,21 @@ function exitCropMode() {
 }
 
 function clampImageOffset(el) {
-  if (!el._natW) return; // can't clamp without natural dims
   const z = el.imgZoom || 1;
-  const bs = Math.max(el.w / el._natW, el.h / el._natH);
-  const s = bs * z;
-  const sw = el._natW * s, sh = el._natH * s;
-  const maxX = Math.max(0, (sw - el.w) / 2);
-  const maxY = Math.max(0, (sh - el.h) / 2);
+  // Zoom overflow from transform:scale
+  let maxX = el.w * (z - 1) / 2;
+  let maxY = el.h * (z - 1) / 2;
+  // Cover overflow from aspect ratio mismatch (pan within cover at zoom=1)
+  if (el._natW) {
+    const bs = Math.max(el.w / el._natW, el.h / el._natH);
+    const sw = el._natW * bs, sh = el._natH * bs;
+    maxX += Math.max(0, (sw - el.w) / 2);
+    maxY += Math.max(0, (sh - el.h) / 2);
+  } else {
+    // Natural dims not yet cached — allow generous pan until onload caches them
+    maxX += Math.max(el.w, el.h);
+    maxY += Math.max(el.w, el.h);
+  }
   el.imgOffsetX = Math.max(-maxX, Math.min(maxX, el.imgOffsetX || 0));
   el.imgOffsetY = Math.max(-maxY, Math.min(maxY, el.imgOffsetY || 0));
 }
